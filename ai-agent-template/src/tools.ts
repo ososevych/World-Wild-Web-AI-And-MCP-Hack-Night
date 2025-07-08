@@ -39,7 +39,7 @@ const scheduleTask = tool({
   parameters: unstable_scheduleSchema,
   execute: async ({ when, description }) => {
     // we can now read the agent context from the ALS store
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
 
     function throwError(msg: string): string {
       throw new Error(msg);
@@ -56,10 +56,10 @@ const scheduleTask = tool({
             ? when.cron // cron
             : throwError("not a valid schedule input");
     try {
-      agent!.schedule(input!, "executeTask", description);
+      agent?.schedule?.(input as any, "executeTask" as any, description);
     } catch (error) {
       console.error("error scheduling task", error);
-      return `Error scheduling task: ${error}`;
+      return `Error scheduling task: ${error instanceof Error ? error.message : String(error)}`;
     }
     return `Task scheduled for type "${when.type}" : ${input}`;
   },
@@ -73,7 +73,7 @@ const getScheduledTasks = tool({
   description: "List all tasks that have been scheduled",
   parameters: z.object({}),
   execute: async () => {
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
 
     try {
       const tasks = agent!.getSchedules();
@@ -96,7 +96,7 @@ const setMemory = tool({
     value: z.string().describe("The value to store for this key"),
   }),
   execute: async ({ key, value }) => {
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
     const agentState = agent!.state as { memory?: Record<string, string> };
     const currentMemory = agentState.memory || {};
 
@@ -119,7 +119,7 @@ const forgetMemory = tool({
     key: z.string().describe("The key of the memory entry to forget"),
   }),
   execute: async ({ key }) => {
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
     const agentState = agent!.state as { memory?: Record<string, string> };
     const currentMemory = agentState.memory || {};
 
@@ -159,7 +159,7 @@ const removeMcpServer = tool({
     id: z.string(),
   }),
   execute: async ({ id }) => {
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
     if (!agent) {
       throw new Error("No agent found");
     }
@@ -172,7 +172,7 @@ const listMcpServers = tool({
   description: "A tool to list all MCP servers",
   parameters: z.object({}),
   execute: async () => {
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
     return agent!.getMcpServers();
   },
 });
@@ -187,7 +187,7 @@ const cancelScheduledTask = tool({
     taskId: z.string().describe("The ID of the task to cancel"),
   }),
   execute: async ({ taskId }) => {
-    const { agent } = getCurrentAgent<Chat>();
+    const { agent } = getCurrentAgent();
     try {
       await agent!.cancelSchedule(taskId);
       return `Task ${taskId} has been successfully canceled.`;
