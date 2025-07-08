@@ -198,6 +198,120 @@ const cancelScheduledTask = tool({
   },
 });
 
+const generateMeme = tool({
+  description:
+    "Generate a meme image using the memegen.link API. Provide template, top text, bottom text, and optional style parameters.",
+  parameters: z.object({
+    template: z
+      .string()
+      .describe("The meme template name, e.g. 'buzz', 'drake', 'doge', etc."),
+    topText: z
+      .string()
+      .describe("Text to display at the top of the meme. Use '-' for blank."),
+    bottomText: z
+      .string()
+      .describe(
+        "Text to display at the bottom of the meme. Use '-' for blank."
+      ),
+    font: z
+      .string()
+      .optional()
+      .describe("Font style, e.g. 'arial', 'impact', etc."),
+    extension: z
+      .string()
+      .optional()
+      .describe("Image extension, e.g. 'jpg', 'png', etc."),
+    width: z.number().optional().describe("Image width in pixels."),
+    height: z.number().optional().describe("Image height in pixels."),
+  }),
+  execute: async ({
+    template,
+    topText,
+    bottomText,
+    font,
+    extension,
+    width,
+    height,
+  }) => {
+    // Helper to encode text for memegen.link
+    function encodeMemeText(text: string): string {
+      return encodeURIComponent(
+        text
+          .replace(/_/g, "__")
+          .replace(/-/g, "--")
+          .replace(/ /g, "_")
+          .replace(/\?/g, "~q")
+          .replace(/%/g, "~p")
+          .replace(/#/g, "~h")
+          .replace(/\//g, "~s")
+          .replace(/\\/g, "~b")
+          .replace(/\"/g, "''")
+      );
+    }
+    let url = `https://api.memegen.link/images/${template}/${encodeMemeText(topText)}/${encodeMemeText(bottomText)}`;
+    if (extension) url += `.${extension}`;
+    const params = new URLSearchParams();
+    if (font) params.append("font", font);
+    if (width) params.append("width", width.toString());
+    if (height) params.append("height", height.toString());
+    if ([...params].length > 0) url += `?${params.toString()}`;
+    // Optionally, could fetch to check if the image exists, but memegen.link is stateless
+    return url;
+  },
+});
+
+const searchMemeTemplates = tool({
+  description:
+    "Search available meme templates from memegen.link by a query string.",
+  parameters: z.object({
+    query: z
+      .string()
+      .describe(
+        "A search string to filter meme templates by name or description."
+      ),
+  }),
+  execute: async ({ query }) => {
+    const res = await fetch("https://api.memegen.link/templates/");
+    if (!res.ok) {
+      throw new Error("Failed to fetch meme templates");
+    }
+    const templates = (await res.json()) as any[];
+    // templates is an array of objects with 'id', 'name', 'blank', 'example', etc.
+    const q = query.trim().toLowerCase();
+    const filtered = templates.filter(
+      (tpl: any) =>
+        tpl.id.toLowerCase().includes(q) ||
+        (tpl.name && tpl.name.toLowerCase().includes(q))
+    );
+    // Return a simplified list
+    return filtered.map((tpl: any) => ({
+      id: tpl.id,
+      name: tpl.name,
+      example: tpl.example,
+      blank: tpl.blank,
+    }));
+  },
+});
+
+const listAllMemeTemplates = tool({
+  description: "List all available meme templates from memegen.link.",
+  parameters: z.object({}),
+  execute: async () => {
+    const res = await fetch("https://api.memegen.link/templates/");
+    if (!res.ok) {
+      throw new Error("Failed to fetch meme templates");
+    }
+    const templates = (await res.json()) as any[];
+    // Return the full list (id, name, example, blank)
+    return templates.map((tpl: any) => ({
+      id: tpl.id,
+      name: tpl.name,
+      example: tpl.example,
+      blank: tpl.blank,
+    }));
+  },
+});
+
 /**
  * Export all available tools
  * These will be provided to the AI model to describe available capabilities
@@ -213,6 +327,9 @@ export const tools = {
   scheduleTask,
   getScheduledTasks,
   cancelScheduledTask,
+  generateMeme,
+  searchMemeTemplates,
+  listAllMemeTemplates,
 };
 
 /**
