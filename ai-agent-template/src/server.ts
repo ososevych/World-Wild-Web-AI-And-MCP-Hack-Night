@@ -20,7 +20,7 @@ import { fiberplane, withInstrumentation } from "@fiberplane/agents";
 
 //const model = openai("gpt-4o-2024-11-20");
 //const model = anthropic("claude-3-5-sonnet-latest");
-const model = google("gemini-2.5-pro");
+const model = google("gemini-2.5-flash");
 // Cloudflare AI Gateway
 // const openai = createOpenAI({
 //   apiKey: env.OPENAI_API_KEY,
