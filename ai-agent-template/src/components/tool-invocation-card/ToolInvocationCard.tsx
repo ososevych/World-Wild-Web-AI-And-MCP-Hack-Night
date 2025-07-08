@@ -23,6 +23,16 @@ interface ToolInvocationCardProps {
   addToolResult: (args: { toolCallId: string; result: string }) => void;
 }
 
+// Type guard for meme result items
+function isTextItem(item: any): item is { type: string; text: string } {
+  return (
+    item &&
+    typeof item === "object" &&
+    item.type === "text" &&
+    typeof item.text === "string"
+  );
+}
+
 export function ToolInvocationCard({
   toolInvocation,
   toolCallId,
@@ -111,30 +121,88 @@ export function ToolInvocationCard({
               <h5 className="text-xs font-medium mb-1 text-muted-foreground">
                 Result:
               </h5>
-              <pre className="bg-background/80 p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap break-words max-w-[450px]">
-                {(() => {
-                  const result = toolInvocation.result;
-                  if (typeof result === "object" && result.content) {
-                    return result.content
-                      .map((item: { type: string; text: string }) => {
-                        if (
-                          item.type === "text" &&
-                          item.text.startsWith("\n~ Page URL:")
-                        ) {
-                          const lines = item.text.split("\n").filter(Boolean);
-                          return lines
-                            .map(
-                              (line: string) => `- ${line.replace("\n~ ", "")}`
-                            )
-                            .join("\n");
+              {(() => {
+                const result = toolInvocation.result;
+                let url: string | null = null;
+                // Try to extract the URL if the result is a memegen.link image
+                if (
+                  typeof result === "string" &&
+                  result.startsWith("https://api.memegen.link/images/")
+                ) {
+                  url = result;
+                } else if (
+                  typeof result === "object" &&
+                  result !== null &&
+                  "content" in result &&
+                  Array.isArray(result.content)
+                ) {
+                  // Sometimes the result is wrapped in a content array
+                  const textItem = Array.isArray(result.content)
+                    ? (result.content as Array<unknown>).find(
+                        (item: unknown) => {
+                          if (isTextItem(item)) {
+                            return (item.text as string).startsWith(
+                              "https://api.memegen.link/images/"
+                            );
+                          }
+                          return false;
                         }
-                        return item.text;
-                      })
-                      .join("\n");
+                      )
+                    : undefined;
+                  if (textItem && isTextItem(textItem)) {
+                    url = textItem.text;
                   }
-                  return JSON.stringify(result, null, 2);
-                })()}
-              </pre>
+                }
+                if (url) {
+                  return (
+                    <div className="flex flex-col items-start gap-2">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline break-all"
+                      >
+                        {url}
+                      </a>
+                      <img
+                        src={url}
+                        alt="Generated meme"
+                        className="max-w-full rounded shadow border border-neutral-300 dark:border-neutral-700"
+                        style={{ maxHeight: 300 }}
+                      />
+                    </div>
+                  );
+                }
+                // Default rendering (as before)
+                return (
+                  <pre className="bg-background/80 p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap break-words max-w-[450px]">
+                    {(() => {
+                      if (typeof result === "object" && result.content) {
+                        return result.content
+                          .map((item: { type: string; text: string }) => {
+                            if (
+                              item.type === "text" &&
+                              item.text.startsWith("\n~ Page URL:")
+                            ) {
+                              const lines = item.text
+                                .split("\n")
+                                .filter(Boolean);
+                              return lines
+                                .map(
+                                  (line: string) =>
+                                    `- ${line.replace("\n~ ", "")}`
+                                )
+                                .join("\n");
+                            }
+                            return item.text;
+                          })
+                          .join("\n");
+                      }
+                      return JSON.stringify(result, null, 2);
+                    })()}
+                  </pre>
+                );
+              })()}
             </div>
           )}
         </div>
